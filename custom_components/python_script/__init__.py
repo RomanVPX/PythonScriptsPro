@@ -1,8 +1,6 @@
 import hashlib
 import logging
 import traceback
-import time
-import datetime
 
 import voluptuous as vol
 from homeassistant.core import (
@@ -108,24 +106,22 @@ def execute_script(hass, data, context, logger, code) -> ServiceResponse:
     try:
         _LOGGER.debug("Run python script")
 
-        # 1. Готовим изолированный namespace для скрипта
+        # Готовим изолированный namespace для скрипта
         script_vars = {
             "hass": hass,
             "data": data,
             "logger": logger,
-            "time": time,
-            "datetime": datetime,
             "dt_util": dt_util,
             "output": {}
         }
 
-        # 2. Выполняем код в этом namespace
+        # Выполняем код в этом namespace
         exec(code, script_vars)
 
-        # 3. Извлекаем результат ИСКЛЮЧИТЕЛЬНО из 'output'
+        #  Извлекаем результат ИСКЛЮЧИТЕЛЬНО из 'output'
         response = script_vars.get("output")
 
-        # 4. Проверяем, что 'output' - это словарь, и возвращаем его
+        # Проверяем, что 'output' - это словарь, и возвращаем его
         if isinstance(response, dict):
             # Убедимся, что его можно сериализовать (опционально, но безопасно)
             try:
@@ -143,19 +139,3 @@ def execute_script(hass, data, context, logger, code) -> ServiceResponse:
     except Exception as e:
         _LOGGER.error("Error executing Python script", exc_info=e)
         return {"error": str(e), "traceback": "".join(traceback.format_exception(e))}
-
-
-# Уже не нужно, но оставлю на всякий случай
-def simple_type(value) -> bool:
-    """Can be converted to JSON."""
-    # https://github.com/AlexxIT/PythonScriptsPro/issues/26
-    if value is None or isinstance(value, (str, int, float, bool)):
-        return True
-
-    if isinstance(value, (dict, list)):
-        try:
-            return JSON_DUMP(value) is not None
-        except TypeError:
-            pass
-
-    return False

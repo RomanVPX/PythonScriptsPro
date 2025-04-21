@@ -1,6 +1,8 @@
 import hashlib
 import logging
 import traceback
+import time
+import datetime
 
 import voluptuous as vol
 from homeassistant.core import (
@@ -13,6 +15,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.json import JSON_DUMP
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.requirements import async_process_requirements
+from homeassistant.util import dt as dt_util
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -101,19 +104,48 @@ async def async_setup(hass: HomeAssistant, hass_config: ConfigType):
 
 
 def execute_script(hass, data, context, logger, code) -> ServiceResponse:
+    """Executes the Python script and returns the 'output' dictionary."""
     try:
         _LOGGER.debug("Run python script")
-        vars = {**globals(), **locals()}
-        exec(code, vars)
-        response = {
-            k: v for k, v in vars.items() if k not in globals() and simple_type(v)
+
+        # 1. Готовим изолированный namespace для скрипта
+        script_vars = {
+            "hass": hass,
+            "data": data,
+            "logger": logger,
+            "time": time,
+            "datetime": datetime,
+            "dt_util": dt_util,
+            "output": {}
         }
-        return response
+
+        # 2. Выполняем код в этом namespace
+        exec(code, script_vars)
+
+        # 3. Извлекаем результат ИСКЛЮЧИТЕЛЬНО из 'output'
+        response = script_vars.get("output")
+
+        # 4. Проверяем, что 'output' - это словарь, и возвращаем его
+        if isinstance(response, dict):
+            # Убедимся, что его можно сериализовать (опционально, но безопасно)
+            try:
+                JSON_DUMP(response)
+                return response
+            except TypeError as json_err:
+                _LOGGER.error(f"Script output dictionary is not JSON serializable: {json_err}", exc_info=True)
+                # Возвращаем ошибку или пустой словарь? Лучше ошибку.
+                return {"error": "Script output is not JSON serializable", "details": str(json_err)}
+        else:
+            _LOGGER.warning(f"Script finished, but 'output' is not a dictionary (type: {type(response)}). Returning empty result.")
+            # Если output не словарь, возвращаем пустой словарь или None
+            return {} # Пустой словарь безопаснее
+
     except Exception as e:
-        _LOGGER.error(f"Error executing script", exc_info=e)
+        _LOGGER.error("Error executing Python script", exc_info=e)
         return {"error": str(e), "traceback": "".join(traceback.format_exception(e))}
 
 
+# Уже не нужно, но оставлю на всякий случай
 def simple_type(value) -> bool:
     """Can be converted to JSON."""
     # https://github.com/AlexxIT/PythonScriptsPro/issues/26

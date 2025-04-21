@@ -2,11 +2,11 @@
   "domain": "python_script",
   "name": "Python Scripts Pro",
   "codeowners": [
-    "@AlexxIT"
+    "@RomanVPX"
   ],
   "dependencies": [],
-  "documentation": "https://github.com/AlexxIT/PythonScriptsPro",
-  "issue_tracker": "https://github.com/AlexxIT/PythonScriptsPro/issues",
+  "documentation": "https://github.com/RomanVPX/PythonScriptsPro",
+  "issue_tracker": "https://github.com/RomanVPX/PythonScriptsPro/issues",
   "requirements": [],
   "version": "1.0.3"
 }
